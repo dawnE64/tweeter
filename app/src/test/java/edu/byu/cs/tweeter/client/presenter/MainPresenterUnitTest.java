@@ -1,6 +1,5 @@
 package edu.byu.cs.tweeter.client.presenter;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -15,7 +14,6 @@ import edu.byu.cs.tweeter.client.model.service.PostService;
 import edu.byu.cs.tweeter.client.model.service.UserService;
 import edu.byu.cs.tweeter.client.model.service.observer.LogoutObserver;
 import edu.byu.cs.tweeter.client.model.service.observer.PostObserver;
-import edu.byu.cs.tweeter.client.model.service.observer.ServiceObserver;
 import edu.byu.cs.tweeter.model.domain.AuthToken;
 import edu.byu.cs.tweeter.model.domain.Status;
 import edu.byu.cs.tweeter.model.domain.User;
@@ -40,7 +38,7 @@ public class MainPresenterUnitTest {
         mockCache = Mockito.mock(Cache.class); // To mock, constructor must be public. The problem with statics is they aren't unit testable.
         Cache.setInstance(mockCache);
 
-        mainPresenterSpy = Mockito.spy(new MainPresenter(mockView, new AuthToken(), new User()));
+        mainPresenterSpy = Mockito.spy(new MainPresenter(mockView, new AuthToken(""), new User("", "", "", "")));
         Mockito.doReturn(mockUserService).when(mainPresenterSpy).getUserService(); // We use spy to take over methods like this.
 
         mockPostService = Mockito.mock(PostService.class);
@@ -130,10 +128,28 @@ public class MainPresenterUnitTest {
 
     @Test
     public void testPostStatus_postSucceeds() {
+        String mockStatus = "Mock Status";
+        User mockUser = new User("", "", "", "");
+        String mockDate = "dd-mm-yy";
+
+        List<String> mockURLs = new ArrayList<String>();
+        mockURLs.add("1");
+        mockURLs.add("2");
+        mockURLs.add("3");
+
+        List<String> mockMentions = new ArrayList<String>();
+        mockMentions.add("@1");
+        mockMentions.add("@2");
+        mockMentions.add("@3");
+
         Answer<Void> successAnswer = new Answer<Void>() {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
                 PostObserver observer = invocation.getArgumentAt(1, PostObserver.class);
+                Status status = new Status(mockStatus, mockUser, mockDate, mockURLs, mockMentions);
+                assertEquals(invocation.getArguments()[0], status);
+                assertEquals(invocation.getArguments()[1], observer);
+
                 observer.PostSucceeded();
                 return null;
             }
@@ -143,11 +159,21 @@ public class MainPresenterUnitTest {
         Mockito.doAnswer(successAnswer).when(mockPostService).run(Mockito.any(), Mockito.any());
 
         // Test...
-        mainPresenterSpy.postStatus(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        mainPresenterSpy.postStatus(mockStatus, mockUser, mockDate, mockURLs, mockMentions);
 
         // Report
         Mockito.verify(mockView).displayInfoMessage("Posting Status...");
         Mockito.verify(mockView).displayInfoMessage("Successfully Posted!");
+
+
+        mainPresenterSpy.postStatus(mockStatus, mockUser, mockDate, mockURLs, mockMentions);
+
+        Mockito.doAnswer(invocation -> {
+            PostObserver observer = (PostObserver) invocation.getArguments()[1];
+
+            observer.PostSucceeded();
+            return true;
+        }).when(mockPostService).run(Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -168,8 +194,8 @@ public class MainPresenterUnitTest {
         mainPresenterSpy.postStatus(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
         // Report
-//        Mockito.verify(mockView).displayInfoMessage("Posting Status...");
         Mockito.verify(mockView).displayErrorMessage("Service failed: <ERROR MESSAGE>");
+        Mockito.verify(mockView, Mockito.times(0)).displayInfoMessage("Successfully Posted!");
     }
 
     @Test
@@ -190,38 +216,7 @@ public class MainPresenterUnitTest {
         mainPresenterSpy.postStatus(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
         // Report
-//        Mockito.verify(mockView).displayInfoMessage("Posting Status...");
         Mockito.verify(mockView).displayErrorMessage("Service failed because of exception: <EXCEPTION MESSAGE>");
+        Mockito.verify(mockView, Mockito.times(0)).displayInfoMessage("Successfully Posted!");
     }
-
-    // Todo: verify somehow?
-//    @Test
-//    public void verify_ifCorrect() {
-//        String mockStatus = "Mock Status";
-//        User mockUser = Mockito.mock(User.class);
-//        String mockDate = "dd-mm-yy";
-//
-//        List<String> mockURLs = new ArrayList<String>();
-//        mockURLs.add("1");
-//        mockURLs.add("2");
-//        mockURLs.add("3");
-//
-//        List<String> mockMentions = new ArrayList<String>();
-//        mockMentions.add("@1");
-//        mockMentions.add("@2");
-//        mockMentions.add("@3");
-//
-////        PostObserver mockPostObserver = Mockito.mock(PostObserver.class);
-//
-//        mainPresenterSpy.postStatus(mockStatus, mockUser, mockDate, mockURLs, mockMentions);
-//
-//        Mockito.doAnswer(invocation -> {
-//            PostObserver observer = (PostObserver) invocation.getArguments()[1];
-//            assertEquals(invocation.getArguments()[0], mockStatus);
-//            assertEquals(invocation.getArguments()[1], mockPostObserver);
-//            observer.PostSucceeded();
-//            return true;
-//        }).when(mockPostService).run(mockStatus, mockPostObserver);
-//    }
-
 }
